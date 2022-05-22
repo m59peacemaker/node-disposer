@@ -1,0 +1,33 @@
+{
+  "name": "@m59/disposer",
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=14.13.1"
+  },
+  "description": "Create a disposer function that uses a reference and cleans it up afterward.",
+  "main": "./src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node ./src/index.spec.js"
+  },
+  "keywords": [
+    "dispose",
+    "disposer",
+    "cleanup",
+    "resource",
+    "management",
+    "async",
+    "promise"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/m59peacemaker/node-disposer"
+  },
+  "author": "Johnny Hauser <johnnyhauser@gmail.com>",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "promisify-child-process": "^4.1.1",
+    "zora": "^4.0.0"
+  }
+}
