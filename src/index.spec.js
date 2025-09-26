@@ -204,3 +204,69 @@ test('diposes of reference if process is killed with SIGHUP when use fn promise 
 		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
 	}
 })
+
+test('diposes of reference if process crashes due to uncaught error', async t => {
+	const filepath = get_temporary_filepath()
+	await writeFile(filepath, '')
+
+	const code = `
+		import { rmSync } from 'node:fs'
+		import { rm } from 'node:fs/promises'
+		import { create_disposer } from './index.js'
+
+		const use_filepath = create_disposer({
+			dispose: rm,
+			dispose_on_exit: rmSync
+		})
+
+		use_filepath("${filepath}", () => new Promise(resolve => setTimeout(resolve, 100000)))
+		setTimeout(() => {
+			throw new Error()
+		}, 100)
+	`
+
+	const proc = spawn('node', [ '--eval', code, '--input-type', 'module' ], { encoding: 'utf8', cwd: __dirname })
+	await proc
+		.catch(error => {
+			t.ok(error.stderr.includes(`Error`))
+			t.equal(error.code, 1, 'exited with error code 1')
+		})
+	try {
+		await readFile(filepath)
+		t.fail(`file still exists: ${filepath}`)
+	} catch (error) {
+		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
+	}
+})
+
+test('diposes of reference if process crashes due to unhandled promise rejection', async t => {
+	const filepath = get_temporary_filepath()
+	await writeFile(filepath, '')
+
+	const code = `
+		import { rmSync } from 'node:fs'
+		import { rm } from 'node:fs/promises'
+		import { create_disposer } from './index.js'
+
+		const use_filepath = create_disposer({
+			dispose: rm,
+			dispose_on_exit: rmSync
+		})
+
+		use_filepath("${filepath}", () => new Promise(resolve => setTimeout(resolve, 100000)))
+		new Promise((resolve, reject) => setTimeout(reject, 100))
+	`
+
+	const proc = spawn('node', [ '--eval', code, '--input-type', 'module' ], { encoding: 'utf8', cwd: __dirname })
+	await proc
+		.catch(error => {
+			t.ok(error.stderr.includes(`code: 'ERR_UNHANDLED_REJECTION'`))
+			t.equal(error.code, 1, 'exited with error code 1')
+		})
+	try {
+		await readFile(filepath)
+		t.fail(`file still exists: ${filepath}`)
+	} catch (error) {
+		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
+	}
+})
