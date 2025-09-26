@@ -65,7 +65,42 @@ test('returns use fn return value', async t => {
 	)
 })
 
-test('diposes of reference if process is killed (when use fn promise has neither fulfilled nor rejected)', async t => {
+test('diposes of reference if process is killed with SIGINT when use fn promise has neither fulfilled nor rejected', async t => {
+	const filepath = get_temporary_filepath()
+	await writeFile(filepath, '')
+
+	const code = `
+		import { rmSync } from 'node:fs'
+		import { rm } from 'node:fs/promises'
+		import { create_disposer } from './index.js'
+
+		const use_filepath = create_disposer({
+			dispose: rm,
+			dispose_on_exit: rmSync
+		})
+
+		use_filepath("${filepath}", () => new Promise(resolve => setTimeout(resolve, 100000)))
+	`
+
+	const proc = spawn('node', [ '--eval', code, '--input-type', 'module' ], { encoding: 'utf8', cwd: __dirname })
+	await new Promise(resolve => setTimeout(resolve, 500))
+	proc.kill('SIGINT')
+	await proc
+		.catch(error => {
+			if (error.signal === 'SIGINT') {
+				return error
+			}
+			throw error
+		})
+	try {
+		await readFile(filepath)
+		t.fail(`file still exists: ${filepath}`)
+	} catch (error) {
+		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
+	}
+})
+
+test('diposes of reference if process is killed with SIGTERM when use fn promise has neither fulfilled nor rejected', async t => {
 	const filepath = get_temporary_filepath()
 	await writeFile(filepath, '')
 
@@ -94,7 +129,77 @@ test('diposes of reference if process is killed (when use fn promise has neither
 		})
 	try {
 		await readFile(filepath)
-		t.fail(`file still exists: ${tmp_dir}`)
+		t.fail(`file still exists: ${filepath}`)
+	} catch (error) {
+		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
+	}
+})
+
+test('diposes of reference if process is killed with SIGUSR2 when use fn promise has neither fulfilled nor rejected', async t => {
+	const filepath = get_temporary_filepath()
+	await writeFile(filepath, '')
+
+	const code = `
+		import { rmSync } from 'node:fs'
+		import { rm } from 'node:fs/promises'
+		import { create_disposer } from './index.js'
+
+		const use_filepath = create_disposer({
+			dispose: rm,
+			dispose_on_exit: rmSync
+		})
+
+		use_filepath("${filepath}", () => new Promise(resolve => setTimeout(resolve, 100000)))
+	`
+
+	const proc = spawn('node', [ '--eval', code, '--input-type', 'module' ], { encoding: 'utf8', cwd: __dirname })
+	await new Promise(resolve => setTimeout(resolve, 500))
+	proc.kill('SIGUSR2')
+	await proc
+		.catch(error => {
+			if (error.signal === 'SIGUSR2') {
+				return error
+			}
+			throw error
+		})
+	try {
+		await readFile(filepath)
+		t.fail(`file still exists: ${filepath}`)
+	} catch (error) {
+		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
+	}
+})
+
+test('diposes of reference if process is killed with SIGHUP when use fn promise has neither fulfilled nor rejected', async t => {
+	const filepath = get_temporary_filepath()
+	await writeFile(filepath, '')
+
+	const code = `
+		import { rmSync } from 'node:fs'
+		import { rm } from 'node:fs/promises'
+		import { create_disposer } from './index.js'
+
+		const use_filepath = create_disposer({
+			dispose: rm,
+			dispose_on_exit: rmSync
+		})
+
+		use_filepath("${filepath}", () => new Promise(resolve => setTimeout(resolve, 100000)))
+	`
+
+	const proc = spawn('node', [ '--eval', code, '--input-type', 'module' ], { encoding: 'utf8', cwd: __dirname })
+	await new Promise(resolve => setTimeout(resolve, 500))
+	proc.kill('SIGHUP')
+	await proc
+		.catch(error => {
+			if (error.signal === 'SIGHUP') {
+				return error
+			}
+			throw error
+		})
+	try {
+		await readFile(filepath)
+		t.fail(`file still exists: ${filepath}`)
 	} catch (error) {
 		t.equal(error.code, 'ENOENT', `file was removed: ${filepath}`)
 	}

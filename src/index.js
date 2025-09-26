@@ -1,3 +1,5 @@
+const signals = [ 'SIGINT', 'SIGTERM', 'SIGUSR2', 'SIGHUP' ]
+
 /*
 	All consumers of this module share process event listners and one global state because it's efficient and should have no negative consequence.
 	Otherwise, there would potentially be many needless event listeners and possibly surprising warnings:
@@ -5,18 +7,23 @@
 */
 const exit_dispose_fns = new Map()
 
-const handle_exit_signal = signal => {
-	process.off('SIGTERM', handle_exit_signal)
-	process.off('SIGINT', handle_exit_signal)
+const on_exit = signal => {
+	process.off('exit', on_exit)
 	for (const [ id, dispose ] of exit_dispose_fns) {
 		dispose()
 	}
-	// NOTE: you must do this to forward the signal on, otherwise this listener intercepts the signal and stops the process from exiting
-	process.kill(process.pid, signal)
 }
 
-process.on('SIGTERM', handle_exit_signal)
-process.on('SIGINT', handle_exit_signal)
+const on_signal = signal => {
+	if (process.listenerCount(signal) === 1) {
+		signals.forEach(signal => process.off(signal, on_signal))
+		process.exit(0)
+	}
+}
+
+signals.forEach(signal => process.on(signal, on_signal))
+
+process.on('exit', on_exit)
 
 export const create_disposer = ({ dispose, dispose_on_exit }) => {
 	return async (reference, use) => {
